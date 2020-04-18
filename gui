@@ -1,0 +1,564 @@
+EMPTY_TILE = "tile"
+START_PIPE = "start"
+END_PIPE = "end"
+LOCKED_TILE = "locked"
+
+SPECIAL_TILES = {
+    "S": START_PIPE,
+    "E": END_PIPE,
+    "L": LOCKED_TILE
+}
+
+PIPES = {
+    "ST": "straight",
+    "CO": "corner",
+    "CR": "cross",
+    "JT": "junction-t",
+    "DI": "diagonals",
+    "OU": "over-under"
+}
+
+### add code here ###
+OPPSITE = {
+    'E': 'W', 'W': 'E', 'N': 'S', 'S': 'N'
+}
+
+
+class Tile:
+    """class Tile"""
+
+    def __init__(self, name, selectable=True):
+        """
+        init Tile
+
+        Arguments:
+            name {str} -- name
+
+        Keyword Arguments:
+            selectable {bool} -- selectable (default: {True})
+        """
+        self.name = name
+        self.selectable = selectable
+        self.id = 'tile'
+
+    def get_name(self):
+        """
+        Returns the name of the tile.
+
+        Returns:
+            str -- name
+        """
+        return self.name
+
+    def get_id(self):
+        """"
+        Returns the id of the tile class.
+
+        Returns:
+            str -- id
+        """
+        return self.id
+
+    def set_select(self, select: bool):
+        """
+        Sets the status of the select switch to select
+
+        Arguments:
+            select {bool} -- select
+        """
+        self.selectable = select
+
+    def can_select(self):
+        """
+        Returns True if the tile is selectable, or False if the tile is not selectable.
+
+        Returns:
+            bool -- selectable
+        """
+        return self.selectable
+
+    def __str__(self):
+        """
+        Returns the string representation of the Tile. See example output below.
+
+        Returns:
+            str -- string representation of the Tile
+        """
+        return "Tile('{}', {})".format(self.name, self.selectable)
+
+    def __repr__(self):
+        """
+        Same as str(self).
+
+        Returns:
+            str -- same as __str__
+        """
+        return str(self)
+
+
+class Pipe(Tile):
+    """Pipe extends Tile"""
+
+    def __init__(self, name, orientation=0, selectable=True):
+        """
+        init Pipe
+
+        Arguments:
+            name {str} -- name
+
+        Keyword Arguments:
+            orientation {int} -- orientation (default: {0})
+            selectable {bool} -- orientation (default: {True})
+        """
+        super().__init__(name, selectable)
+        self.orientation = orientation
+        self.id = 'pipe'
+
+    def get_connected(self, side):
+        """
+        Returns a list of all sides that are connected to the given side. 
+        i.e. return a list containing some combination of ‘N’, ‘S’, ‘E’, ‘W’ or an empty list.
+
+        Arguments:
+            side {str} -- side
+
+        Returns:
+            list -- connected list
+        """
+        DICT = {
+            'start': {},
+            'end': {},
+            'straight': {
+                ('N', 0): ['S'], ('N', 2): ['S'], ('S', 0): ['N'], ('S', 2): ['N'],
+                ('E', 1): ['W'], ('E', 3): ['W'], ('W', 1): ['E'], ('W', 3): ['E']},
+            'corner': {
+                ('N', 0): ['E'], ('E', 0): ['N'], ('E', 1): ['S'], ('S', 1): ['E'],
+                ('S', 2): ['W'], ('W', 2): ['S'], ('W', 3): ['N'], ('N', 3): ['W']},
+            'cross': {
+                ('N', 0): ['E', 'S', 'W'], ('N', 1): ['E', 'S', 'W'], ('N', 2): ['E', 'S', 'W'], ('N', 3): ['E', 'S', 'W'],
+                ('E', 0): ['N', 'S', 'W'], ('E', 1): ['N', 'S', 'W'], ('E', 2): ['N', 'S', 'W'], ('E', 3): ['N', 'S', 'W'],
+                ('S', 0): ['N', 'E', 'W'], ('S', 1): ['N', 'E', 'W'], ('S', 2): ['N', 'E', 'W'], ('S', 3): ['N', 'E', 'W'],
+                ('W', 0): ['N', 'E', 'S'], ('W', 1): ['N', 'E', 'S'], ('W', 2): ['N', 'E', 'S'], ('W', 3): ['N', 'E', 'S']},
+            'junction-t': {
+                ('N', 1): ['S', 'W'], ('N', 2): ['E', 'W'], ('N', 3): ['S', 'E'],
+                ('E', 0): ['S', 'W'], ('E', 2): ['N', 'W'], ('E', 3): ['S', 'N'],
+                ('S', 0): ['W', 'E'], ('S', 1): ['W', 'N'], ('S', 3): ['E', 'N'],
+                ('W', 0): ['E', 'S'], ('W', 1): ['N', 'S'], ('W', 2): ['N', 'E']},
+            'diagonals': {
+                ('N', 0): ['E'], ('N', 1): ['W'], ('N', 2): ['E'], ('N', 3): ['W'],
+                ('E', 0): ['N'], ('E', 1): ['S'], ('E', 2): ['N'], ('E', 3): ['S'],
+                ('S', 0): ['E'], ('S', 1): ['W'], ('S', 2): ['E'], ('S', 3): ['W'],
+                ('W', 0): ['S'], ('W', 1): ['N'], ('W', 2): ['S'], ('W', 3): ['N']},
+            'over-under': {
+                ('N', 0): ['S'], ('N', 2): ['S'], ('S', 0): ['N'], ('S', 2): ['N'],
+                ('E', 1): ['W'], ('E', 3): ['W'], ('W', 1): ['E'], ('W', 3): ['E'],
+                ('N', 1): ['S'], ('N', 3): ['S'], ('S', 1): ['N'], ('S', 3): ['N'],
+                ('E', 0): ['W'], ('E', 2): ['W'], ('W', 0): ['E'], ('W', 2): ['E']}
+        }
+        if self.name in PIPES:
+            name = PIPES[self.name]
+        else:
+            name = self.name
+        return DICT[name].get((side, self.orientation), [])
+
+    def rotate(self, direction: int):
+        """
+        Rotates the pipe one turn. A positive direction implies clockwise rotation,
+        and a negative direction implies counter-clockwise rotation and 0 means no rotation.
+
+        Arguments:
+            direction {int} -- rotate times
+        """
+        self.orientation += direction
+        self.orientation %= 4
+
+    def get_orientation(self):
+        """
+        Returns the orientation of the pipe (orientation must be in the range [0, 3]).
+
+        Returns:
+            int -- orientation
+        """
+        return self.orientation
+
+    def __str__(self):
+        """
+        Returns the string representation of the Pipe. See example output below.
+
+        Returns:
+            str -- representation of the Pipe
+        """
+        return "Pipe('{}', {})".format(self.name, self.orientation)
+
+    def __repr__(self):
+        """
+        Returns the string representation of the Pipe. See example output below.
+
+        Returns:
+            str -- representation of the Pipe
+        """
+        return str(self)
+
+
+class SpecialPipe(Pipe):
+    """SpecialPipe extends Pipe"""
+
+    def __init__(self, name, orientation=0):
+        """
+        init SpicialPipe
+
+        Arguments:
+            name {str} -- name
+
+        Keyword Arguments:
+            orientation {int} -- orientation (default: {0})
+        """
+        super().__init__(name, orientation, False)
+        self.id = 'special_pipe'
+
+    def __str__(self):
+        """
+        Returns the string representation of the Special Pipes. See example output below.
+
+        Returns:
+            str --  representation of the Special Pipes
+        """
+        return "SpecialPipe({})".format(self.orientation)
+
+    def __repr__(self):
+        """
+        Returns the string representation of the Special Pipes. See example output below.
+
+        Returns:
+            str --  representation of the Special Pipes
+        """
+        return str(self)
+
+
+class StartPipe(SpecialPipe):
+    """startpipe extends SpecialPipe"""
+
+    def __init__(self, orientation=0):
+        """
+        init StartPipe
+
+        Keyword Arguments:
+            orientation {int} -- orientation (default: {0})
+        """
+        super().__init__('start', orientation)
+
+    def get_connected(self, side=None):
+        """
+        Returns the direction that thestart pipe is facing
+
+        Keyword Arguments:
+            side {str} -- side (default: {None})
+
+        Returns:
+            list -- the direction list that thestart pipe is facing
+        """
+        return [['N'], ['E'], ['S'], ['W']][self.orientation]
+
+    def __str__(self):
+        """
+        Returns the string representation of the Start Pipes. See example output below.
+
+        Returns:
+            str --  representation of the Start Pipes
+        """
+        return "StartPipe({})".format(self.orientation)
+
+
+class EndPipe(SpecialPipe):
+    """EndPipe extends SpecialPipe"""
+
+    def __init__(self, orientation=0):
+        """
+        init EndPipe
+
+        Keyword Arguments:
+            orientation {int} -- orientation (default: {0})
+        """
+        super().__init__('end', orientation)
+
+    def get_connected(self, side=None):
+        """
+        Returns the direction that theend pipe is facing
+        """
+        return [['S'], ['W'], ['N'], ['E']][self.orientation]
+
+    def __str__(self):
+        """
+        Returns the string representation of the End Pipes. See example output below.
+        """
+        return "EndPipe({})".format(self.orientation)
+
+
+class PipeGame:
+    """
+    A game of Pipes.
+    """
+
+    def __init__(self, game_file='game_1.csv'):
+        """
+        Construct a game of Pipes from a file name.
+
+        Parameters:
+            game_file (str): name of the game file.
+        """
+        #########################COMMENT THIS SECTION OUT WHEN DOING load_file#######################
+        # self.board_layout = [
+        #     [Tile('tile', True), Tile('tile', True), Tile('tile', True),
+        #      Tile('tile', True), Tile('tile', True), Tile('tile', True)],
+        #     [StartPipe(1), Tile('tile', True), Tile('tile', True),
+        #      Tile('tile', True), Tile('tile', True), Tile('tile', True)],
+        #     [Tile('tile', True), Tile('tile', True), Tile('tile', True),
+        #      Pipe('junction-t', 0, False), Tile('tile', True), Tile('tile', True)],
+        #     [Tile('tile', True), Tile('tile', True), Tile('tile', True),
+        #      Tile('tile', True), Tile('locked', False), Tile('tile', True)],
+        #     [Tile('tile', True), Tile('tile', True), Tile('tile', True),
+        #      Tile('tile', True), EndPipe(3), Tile('tile', True)],
+        #     [Tile('tile', True), Tile('tile', True), Tile('tile', True),
+        #      Tile('tile', True), Tile('tile', True), Tile('tile', True)]
+        # ]
+        # self.playable_pipes = {'straight': 1, 'corner': 1, 'cross': 1,
+        #                        'junction-t': 1, 'diagonals': 1, 'over-under': 1}
+        #########################COMMENT THIS SECTION OUT WHEN DOING load_file#######################
+        self.load_file(game_file)
+        self.end_pipe_positions()
+        self.m = len(self.board_layout)
+        self.n = len(self.board_layout[0])
+        ### add code here ###
+
+    def get_board_layout(self):
+        """
+        Returns a list of lists,
+        i.e.
+        a list where each element is a list representation 
+        of the row (each row list contains the Tile
+        instances for each column in that row).
+
+        Returns:
+            list[list] -- a list where each element is a list representation
+        """
+        return self.board_layout
+
+    def get_playable_pipes(self):
+        """
+        Returns a dictionary of all the playable pipes
+        (the pipe types) and number of times each pipe can be played
+
+        Returns:
+            dict -- all the playable pipes
+        """
+        return self.playable_pipes
+
+    def change_playable_amount(self, pipe_name: str, number: int):
+        """
+        Set the quantity of playable pipes of type
+        specified by pipe_name to number (in the selection panel).
+
+        Arguments:
+            pipe_name {str} -- name
+            number {int} -- change_number
+        """
+        self.playable_pipes[pipe_name] += number
+
+    def set_pipe(self, pipe: Pipe, position: tuple):
+        """
+        Place the specified pipe at the given position (row, col) in the game board. 
+        The number of available pipes of the relevant type should also be updated.
+
+        Arguments:
+            pipe {Pipe} -- pipe
+            position {tuple} -- position
+        """
+        r, c = position
+        self.board_layout[r][c] = pipe
+        name = pipe.get_name()
+        self.change_playable_amount(name, -1)
+
+    def get_pipe(self, position):
+        """
+        Returns the pipe or tile in the given position (row, col) of the game board
+
+        Arguments:
+            position {tuple} -- position
+
+        Returns:
+            Pipe -- tile or pipe
+        """
+        if not position or len(position) < 2:
+            return None
+        r, c = position
+        return self.board_layout[r][c]
+
+    def pipe_in_position(self, position):
+        """
+        Returns the pipe in the given position (row, col) of the game board
+        if there is a Pipe in the given position. 
+        Returns None 
+        if the position given is None or if the object in the given position is not a Pipe.
+
+        Arguments:
+            position {tuple} -- position
+
+        Returns:
+            Pipe -- Pipe or None
+        """
+        if not position or len(position) < 2:
+            return None
+        r, c = position
+        if isinstance(self.board_layout[r][c], Pipe):
+            return self.board_layout[r][c]
+        return None
+
+    def remove_pipe(self, position: tuple):
+        """
+        Removes the pipe at the given position from the board 
+        (Hint: create an empty tile at the given (row, col) position and
+        increase the playable number of the given pipe).
+
+        Arguments:
+            position {tuple} -- position
+        """
+        r, c = position
+        pipe = self.board_layout[r][c]
+        self.board_layout[r][c] = Tile('tile', True)
+        name = pipe.get_name()
+        self.change_playable_amount(name, 1)
+
+    # 这个函数也有点问题，从文档上来说 不是很明确
+    def position_in_direction(self, direction, position):
+        """
+        Returns the direction and position (row, col) in the given direction
+        from the given position, if the resulting position is within the game grid,
+        i.e. valid. Returns None if the resulting position would be invalid.
+
+        Arguments:
+            direction {str} -- direction
+            position {tuple} -- position
+
+        Returns:
+            str,tuple -- op direction,position 
+        """
+        # print(direction)
+        dire = {
+            'E': (0, 1),
+            'S': (1, 0),
+            'W': (0, -1),
+            'N': (-1, 0),
+        }
+        r, c = position
+        x, y = dire[direction]
+        r, c = r + x, c + y
+        op = OPPSITE[direction]
+        if r in range(self.m) and c in range(self.n):
+            return op, (r, c)
+        return None
+
+    def end_pipe_positions(self):
+        """
+        Find and save the start and end pipe positions from the game board.
+        This should be called in the __init__() method
+        so the start and end pipe positions
+        could be found when the PipeGame class is first constructed.
+        """
+        self.starting_position = self.get_starting_position()
+        self.ending_position = self.get_ending_position()
+
+    # 遍历
+    def get_starting_position(self):
+        """
+        Returns the (row, col) position of the start pipe.
+        """
+        for r, i in enumerate(self.board_layout):
+            for c, j in enumerate(i):
+                if isinstance(j, StartPipe):
+                    return (r, c)
+
+    # 遍历
+    def get_ending_position(self):
+        """
+        Returns the (row, col) position of the end pipe.
+        """
+        for r, i in enumerate(self.board_layout):
+            for c, j in enumerate(i):
+                if isinstance(j, EndPipe):
+                    return (r, c)
+
+    def load_file(self, game_file='game_1.csv'):
+        """
+        Returns appropriate values for playable_pipes and board_layout respectively,
+        according to the file with the given filename.
+
+        Keyword Arguments:
+            game_file {str} -- game_file_name (default: {'game_1.csv'})
+        """
+        with open(game_file, "r") as f:
+            tmp = f.readlines()
+        tmp = [i.strip() for i in tmp]
+        self.board_layout = []
+        for i in tmp[:-1]:
+            self.board_layout.append([])
+            for j in i.split(','):
+                # print(j)
+                o = 0
+                if j == '#':
+                    t = Tile('tile', True)
+                if j[-1].isdigit():
+                    o = int(j[-1])
+                    j = j[:-1]
+                if j in PIPES:
+                    t = Pipe(PIPES[j], o, False)
+                elif j == 'S':
+                    t = StartPipe(o)
+                elif j == 'E':
+                    t = EndPipe(o)
+                elif j == 'L':
+                    t = Tile('locked', False)
+                self.board_layout[-1].append(t)
+        num = tmp[-1].split(',')
+        num = [int(i) for i in num]
+        self.playable_pipes = {}
+        for i, j in zip(PIPES.values(), num):
+            self.playable_pipes[i] = j
+    # #########################UNCOMMENT THIS FUNCTION WHEN READY#######################
+
+    def check_win(self):
+        """
+        (bool) Returns True  if the player has won the game False otherwise.
+        """
+        position = self.get_starting_position()
+        pipe = self.pipe_in_position(position)
+        queue = [(pipe, None, position)]
+        discovered = [(pipe, None)]
+        while queue:
+            pipe, direction, position = queue.pop()
+            for direction in pipe.get_connected(direction):
+
+                if self.position_in_direction(direction, position) is None:
+                    new_direction = None
+                    new_position = None
+                else:
+                    new_direction, new_position = self.position_in_direction(
+                        direction, position)
+                if new_position == self.get_ending_position() and direction == self.pipe_in_position(
+                        new_position).get_connected()[0]:
+                    return True
+
+                pipe = self.pipe_in_position(new_position)
+                if pipe is None or (pipe, new_direction) in discovered:
+                    continue
+                discovered.append((pipe, new_direction))
+                queue.append((pipe, new_direction, new_position))
+        return False
+    # #########################UNCOMMENT THIS FUNCTION WHEN READY#######################
+
+
+def main():
+    print("Please run gui.py instead")
+
+
+if __name__ == "__main__":
+    main()
